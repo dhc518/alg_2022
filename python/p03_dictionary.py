@@ -12,7 +12,7 @@ keys = [ "hello", "are_you_there", "world" ]
 for key in keys:
   print('-- Key:', key)
 
-  value = d1[key] if key in d1 else '없는데요'
+  value = d1[key] if key in d1 else '없는데요'#if 가 참이면 좌측, 거짓이면 우측 실행
   # if key in d1:
   #   value = d1[key]
   # else:
@@ -50,8 +50,8 @@ for word in words: # 모든 단어들에 대하여
     counts[first_ch] = 0      # 만들고 0 으로 초기값을 준다
   counts[first_ch] += 1      # 해당 Key 의 Value 를 1 증가시킨다 
 
-# for ch in counts.keys():
-#   print(ch, counts[ch])
+for ch in counts.keys():
+  print(ch, counts[ch])
 print(counts)
 
 print()
@@ -65,7 +65,7 @@ print()
 print('-- 매번 Key 가 있는지 찾아보는 것이 귀찮을 때가 있다. 이럴때는 defaultdict 를 쓴다--')
 print('-- defaultdict(XXX) 로 생성된 것은 Key 가 존재하지 않으면 XXX() 로 값을 만든다--')
 from collections import defaultdict # import collections 라고 했다면
-counts2 = defaultdict(int)          # collections.defaultdict 라고 써야 한다
+counts2 = defaultdict(int)          # collections.defaultdict 라고 써야 한다. 괄호안에 함수, 클래스 자료구조 등을 써넣어도 된다.
 for word in words: # 모든 단어들에 대하여
   first_ch = word[0] # 단어의 첫글자를 알아낸 뒤
   counts2[first_ch] += 1      # 해당 Key 의 Value 를 1 증가시킨다 

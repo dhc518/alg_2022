@@ -15,7 +15,7 @@ words = [
   "agitate", # 마지막 원소에 , 를 써도 된다 (trailing comma)
 ]
 
-print('-- index 3 번째에 있는 것 --')
+print('-- index 3 번에 있는 것 --')
 print(words[3])
 
 print('-- index 3 번째 이후에 있는 것 --')

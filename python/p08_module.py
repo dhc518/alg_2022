@@ -20,6 +20,7 @@ dy = distance * math.sin(2 * angle_radian)
 pt3 = [pt1[0] + dx, pt1[1] + dy]
 print(f'pt1 을 기준으로 {angle_degree:.2f}° 만큼 더 회전한 점은 [{pt3[0]:.2f}, {pt3[1]:.2f}] 이다')
 
+
 import pygame as pg
 RED, GREEN, BLUE = (255,0,0),(0,255,0),(0,0,255)
 BLACK, WHITE = (0,0,0), (255,255,255)
@@ -56,23 +57,6 @@ d_line(pt1, [pt1[0]+distance,pt1[1]], (251,180,174))
 d_line(pt1, pt2, (204,235,197))
 d_line(pt1, pt3, (179,205,227))
 
-
-pg.display.flip()
-
-loop = True
-while loop:
-  for e in pg.event.get():
-    if e.type == pg.QUIT:
-      pg.quit()
-      loop = False
-      break
-    elif e.type == pg.KEYDOWN and e.key == pg.K_ESCAPE:
-      pg.quit()
-      loop = False
-      break
-
-pg.quit()
-
 print()
 # 반올림=round, 버림=floor (바닥), 올림=ceil (천장)
 print(f'{angle_radian=} {round(angle_radian)=} {math.floor(angle_radian)=} {math.ceil(angle_radian)=}')
@@ -96,6 +80,23 @@ random.shuffle(candidates)
 print(f'배열 내용을 섞어준다: {candidates=}')
 
 print()
+
+pg.display.flip()
+
+loop = True
+while loop:
+  for e in pg.event.get():
+    if e.type == pg.QUIT:
+      pg.quit()
+      loop = False
+      break
+    elif e.type == pg.KEYDOWN and e.key == pg.K_ESCAPE:
+      pg.quit()
+      loop = False
+      break
+
+pg.quit()
+
 import heapq
 numbers = list(range(20))
 random.shuffle(numbers)

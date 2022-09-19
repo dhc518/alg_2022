@@ -1,4 +1,4 @@
-def func():
+def func():#함수를 쓰는 목적 1. 인수분해(코드의 중복을 피할 수 있고 수정이 용이 하다. 공통적인것을 함수로 정의 다른 것은 함수의 인자) 2. 추상화
   print('This is a function')
 
 print('\n--함수는 한번 정의해 놓고 여러 번 호출하기 위해서도 쓴다--')
@@ -24,7 +24,7 @@ def some():
   # some() 내부에서 선언한 value 는 함수의 종료와 함께 소멸한다
 
 def other():
-  print('in other(), value=', value) # 읽기만 하면 외부에서 정의한 변수 value 를 참조한다
+  print('in other(), value=', value) # 정의하지(쓰지) 않고 읽기만 하면 외부에서 정의한 변수 value 를 참조한다. global 써주는 것을 추천
 
 some()
 other()
@@ -36,7 +36,7 @@ other()
 # another()
 
 def yet_another():
-  global value
+  global value # 외부변수를 가져온다고 선언
   print('in yet_another(), reading global:', value)
   value += 20
   print('in yet_another(), after writing global:', value)
@@ -51,11 +51,11 @@ def func_with_arg(x, y):
 
 func_with_arg(10, 20) # 직접 여러 개로 전달
 arg_tuple = 12, 23
-func_with_arg(*arg_tuple) # 그냥 (arg_tuple) 로 쓰면 첫번째 인자로 tuple 을 넘긴 것이 된다
+func_with_arg(*arg_tuple) # 그냥 (arg_tuple) 로 쓰면 첫번째 인자로 tuple(이라는 인자 하나만) 을 넘긴 것이 된다
 arg_list = [34, 45]
-func_with_arg(*arg_list) # tuple 또는 list 에 담은 다음 * 로 내용물을 펼쳐서 전달할 수 있다
+func_with_arg(*arg_list) # tuple 또는 list 에 담은 다음 * 로 내용물을 펼쳐서(쪼개서) 전달할 수 있다
 
-print('\n-- Default Argument & Keyword Argument --')
+print('\n-- Default Argument & Keyword Argument --') # Default Argument를 이용해 미리 정한 디폴트 값으로 빈 상태로 인자를 입력할 수 있다.
 def func_with_def_arg(name, age, score=0, method=None, msg=''):
   if method == None:
     method = 'the-default-method'
@@ -70,7 +70,7 @@ arg_dict = { 'name': 'KKY', 'score': 123, 'msg': 'Hello,world', 'age':30 }
 func_with_def_arg(**arg_dict) # dict 형태로 함수 인자로 전달 가능
 
 print('\n-- 임의로 전달 후 받는 쪽에서 list 나 dict 로 받는 것도 가능 --')
-def func_list(*args):
+def func_list(*args): # 받는 쪽에서 *을 쓰면 인자를 주면 무조건 리스트로 받는다
   print('I got', len(args), 'arguments. first is', args[0])
 
 func_list(10)
@@ -78,7 +78,7 @@ func_list(20, 10)
 func_list(30, 20, 10)
 func_list(40, 30, 20, 10)
 
-def func_dict(**hash):
+def func_dict(**hash):# 받는 쪽에서 **을 쓰면 인자를 주면 무조건 딕셔너리로 받는다
   print('Got the dictionary argument:', hash)
 
 func_dict(name='john', age=20, score=4.5, msg='Hello,world')

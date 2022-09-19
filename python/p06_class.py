@@ -26,7 +26,7 @@ for obj in h1, h2:
 
 print('\n-- 생성될때부터 속성을 가지고 있게 하려면 생성자(constructor) 를 만든다 --')
 class World:
-  def __init__(self): # C++/Java 의 this 대신 self 를 사용한다. 멤버함수는 첫번째 인자가 self 이다.
+  def __init__(self): # C++/Java 의 this 대신 self 를 사용한다. 멤버함수는 첫번째 인자가 self 이다. self 가 첫번째 인자로 넘어간다.
     self.name = 'Unknown'
     self.age = 0
 w1 = World()
@@ -35,7 +35,7 @@ w2 = World()
 w2.name = 'David'
 print(f'name={w2.name}, age={w2.age}')
 
-print('\n-- 객체에 종속된 동작을 하게 하려면 클래스 내에 함수를 정의한다 --')
+print('\n-- 객체에 종속된 동작을 하게 하려면 클래스 내에 함수를 정의한다 --')#데이터와 동작을 묶음
 class HelloWorld:
   def __init__(self, name='Unknown', age=0):
     self.name = name
@@ -48,7 +48,7 @@ hw2 = HelloWorld('John', 23)
 hw1.print()
 hw2.print()
 
-print('\n-- Python 은 상속 없이도 Polymorphism 이 가능하다 --')
+print('\n-- Python 은 상속 없이도 Polymorphism 이 가능하다 --') # 다형성. 같은 명령을 내려도 각자 다 다른 일을 한다. (분기를 덜 할 수 있다)
 print('\n-- 하지만 상속이 있으면 좋을 때가 많다 --')
 class Worker:
   def __init__(self, name):

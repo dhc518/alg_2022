@@ -33,6 +33,6 @@ student.name = 'David'
 student.age = 22
 student.score = 3.866666
 
-# 객체 속성을 출력하고자 할 때. 두 가지 방법이 장단점이 있다
+# 객체 속성을 출력하고자 할 때. 두 가지 방법이 장단점이 있다. 스트링인터폴레이션
 print('{p.name:^15s} : {p.age:4} : {p.score:.2f}'.format(p=student))
 print(f'{student.name:^15s} : {student.age:4} : {student.score:.2f}')
