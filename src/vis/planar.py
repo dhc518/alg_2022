@@ -27,6 +27,8 @@ class PlanarVisualizer(Visualizer):
     self.compute_min_max()
     self.city_contexts = dict()
     self.edge_contexts = dict()
+    self.legend_right = self.separator_size
+    self.legend_bottom = self.separator_size
     # self.draw()
 
   def compute_min_max(self):
@@ -80,8 +82,8 @@ class PlanarVisualizer(Visualizer):
     self.draw_all_cities()
 
   def calc_coords(self):
-    cw = self.config.screen_width - 2 * self.separator_size
-    ch = self.config.screen_height - 2 * self.separator_size
+    cw = self.config.screen_width - self.separator_size - self.legend_right
+    ch = self.config.screen_height - self.separator_size - self.legend_bottom
 
     scale_x, scale_y = cw / self.diff_x, ch / self.diff_y
     if scale_x < scale_y:
@@ -208,3 +210,136 @@ class PlanarVisualizer(Visualizer):
     ay = y2 + length * math.sin(angle)
     return [ax, ay]
 
+
+class KruskalVisualizer(PlanarVisualizer):
+  def_city_context = {
+    'city_body_color': Color.LightBlue,
+    'city_line_color': Color.DeepSkyBlue,
+    'city_name_color': Color.DarkBlue,
+    'shows_city_index': True,
+    # 'shows_city_coord': True,
+  }
+  grayed_edge_context = {
+    'edge_line_color': Color.WhiteSmoke,
+    'edge_value_color': Color.WhiteSmoke,
+    'shows_edge_value': True,
+  }
+  def_edge_context = {
+    'edge_line_color': Color.Teal,
+    'edge_value_color': Color.DarkGreen,
+    'shows_edge_value': True,
+  }
+  ectx_ignore = {
+    'edge_line_color': Color.Crimson,
+    'edge_value_color': Color.DarkRed,
+    'edge_line_width': 5,
+    'shows_edge_value': True,
+  }
+  bctx_current = {
+    'body_color': Color.LightSalmon,
+    'line_color': Color.DarkRed,
+    'text_color': Color.Indigo,
+  }
+
+  def setup(self, data):
+    super().setup(data)
+    self.candidates = []
+    self.max_weight = max(e[2] for e in data.edges)
+    self.appended_edge = (-1, -1)
+
+  def calc_coords(self):
+    self.legend_right = self.config.screen_width // 3
+    self.legend_bottom = self.config.screen_height // 3
+
+    super().calc_coords()
+
+    self.weights_y = self.config.screen_height - self.legend_bottom + self.separator_size
+    self.weights_w = self.config.screen_width - self.legend_right - self.separator_size
+    self.weights_h = self.legend_bottom - 2 * self.separator_size
+
+    self.roots_x = self.config.screen_width - self.legend_right + self.separator_size
+    self.roots_w = self.legend_right - 2 * self.separator_size
+    self.roots_x2 = self.roots_x + self.roots_w // 2
+    self.roots_y = self.separator_size
+    self.roots_h = self.config.screen_height - 2 * self.separator_size
+    self.root_h = max(self.config.font_size, self.roots_h // len(self.data.roots))
+
+  def draw_content(self):
+    if hasattr(self.data, 'edges'):
+      self.draw_all_edges()
+    self.draw_all_cities(**self.def_city_context)
+
+    self.draw_candidates()
+    self.draw_roots()
+
+  def get_edge_context(self, u,v):
+    if u > v: u,v = v,u
+    if (u,v) in self.candidates:
+      return self.grayed_edge_context
+    return super().get_edge_context(u, v)
+
+  def sort_edges(self):
+    self.candidates = []
+    self.weights = dict()
+    max_weight = 0
+    for u,v,w in self.data.edges:
+      if u > v: u,v = v,u
+      self.candidates.append((u,v))
+      self.weights[(u,v)] = w
+      if max_weight < w:
+        max_weight = w
+      self.draw()
+      self.wait(100)
+    self.max_weight = max_weight
+
+  def draw_candidates(self):
+    x = self.separator_size
+    y = self.weights_y
+    legend = self.weights_h
+    ix = self.weights_w // len(self.data.edges)
+    for u,v,w in self.data.edges:
+      if u > v: u,v = v,u
+      if (u,v) in self.candidates:
+        color = Color.Crimson
+      else:
+        color = Color.WhiteSmoke
+      height = legend * w / self.max_weight
+      pg.draw.line(self.screen, color, [x,y], [x,y+height])
+      x += ix
+
+  def append(self, u, v, w):
+    if u > v: u,v = v,u
+    if (u,v) in self.candidates:
+      del self.candidates[self.candidates.index((u,v))]
+
+    self.appended_edge = (u,v)
+    self.draw()
+    self.wait(1000)
+
+  def ignore(self, u, v, w):
+    if u > v: u,v = v,u
+    self.draw()
+    self.draw_edge(u, v, w, **self.ectx_ignore)
+    self.update_display()
+    self.wait(1000)
+
+  def draw_roots(self):
+    x = self.roots_x
+    y = self.roots_y
+    w = self.roots_w
+    h = self.root_h
+    u,v = self.appended_edge
+    for i in range(len(self.data.roots)):
+      r = self.data.roots[i]
+      ci = self.data.cities[i]
+      cr = self.data.cities[r]
+      if i == v:
+        ctx = self.bctx_current
+      else:
+        ctx = {}
+      self.draw_box([x,y,w,h], text=f'{ci.index}.{ci.name} - {cr.index}.{cr.name}', **ctx)
+      y += h
+
+  def finish(self):
+    self.appended_edge = -1, -1
+    self.draw()
