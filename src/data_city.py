@@ -1083,7 +1083,7 @@ def make_edges(cities, max_factor=1/4):
 
 if __name__ == '__main__':
   # City.apply_index(five_letter_cities)
-  print(f'{len(five_letter_cities)=}')
+  print(f'{len(five_letter_cities)}')
   print(f'Samples: {five_letter_cities[:30]}')
 
   cities = five_letter_cities[:100]
