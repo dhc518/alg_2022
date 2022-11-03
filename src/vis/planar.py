@@ -50,7 +50,7 @@ class PlanarVisualizer(Visualizer):
       return self.city_contexts[index]
     return None
 
-  def set_city_context(self, index, context):
+  def set_city_context(self, index, context=None):
     if context == None:
       if index in self.city_contexts:
         del self.city_contexts[index]
@@ -66,7 +66,7 @@ class PlanarVisualizer(Visualizer):
   def set_edge_context(self, u,v, context):
     if u > v: u,v = v,u
     if context == None:
-      del self.edge_contexts[index]
+      del self.edge_contexts[(u,v)]
     else:
       self.edge_contexts[(u,v)] = context
 
@@ -212,13 +212,14 @@ class PlanarVisualizer(Visualizer):
 
 
 class KruskalVisualizer(PlanarVisualizer):
-  def_city_context = {
+  normal_city_context = {
     'city_body_color': Color.LightBlue,
     'city_line_color': Color.DeepSkyBlue,
     'city_name_color': Color.DarkBlue,
     'shows_city_index': True,
     # 'shows_city_coord': True,
   }
+  def_city_context = normal_city_context
   grayed_edge_context = {
     'edge_line_color': Color.WhiteSmoke,
     'edge_value_color': Color.WhiteSmoke,
@@ -262,7 +263,7 @@ class KruskalVisualizer(PlanarVisualizer):
     self.roots_x2 = self.roots_x + self.roots_w // 2
     self.roots_y = self.separator_size
     self.roots_h = self.config.screen_height - 2 * self.separator_size
-    self.root_h = max(self.config.font_size, self.roots_h // len(self.data.roots))
+    self.root_h = max(self.config.font_size, self.roots_h // len(self.data.cities))
 
   def draw_content(self):
     if hasattr(self.data, 'edges'):
@@ -270,7 +271,7 @@ class KruskalVisualizer(PlanarVisualizer):
     self.draw_all_cities(**self.def_city_context)
 
     self.draw_candidates()
-    self.draw_roots()
+    self.draw_right_pane()
 
   def get_edge_context(self, u,v):
     if u > v: u,v = v,u
@@ -323,7 +324,9 @@ class KruskalVisualizer(PlanarVisualizer):
     self.update_display()
     self.wait(1000)
 
-  def draw_roots(self):
+  def draw_right_pane(self):
+    if not hasattr(self.data, 'roots'): return
+
     x = self.roots_x
     y = self.roots_y
     w = self.roots_w
@@ -343,3 +346,172 @@ class KruskalVisualizer(PlanarVisualizer):
   def finish(self):
     self.appended_edge = -1, -1
     self.draw()
+
+class PrimVisualizer(KruskalVisualizer):
+  grayed_city_context = {
+    'city_body_color': Color.WhiteSmoke,
+    'city_line_color': Color.LightGray,
+    'city_name_color': Color.LightGray,
+    'shows_city_index': True,
+    # 'shows_city_coord': True,
+  }
+  candidate_city_context = {
+    'city_body_color': Color.PaleGreen,
+    'city_line_color': Color.Magenta,
+    'city_name_color': Color.SkyBlue,
+    'shows_city_index': True,
+    # 'shows_city_coord': True,
+  }
+  candidate_edge_context = {
+    'edge_line_color': Color.LightGray,
+    'edge_value_color': Color.SkyBlue,
+    'shows_edge_value': True,
+  }
+  bctx_updated = {
+    'body_color': Color.LightGreen,
+    'line_color': Color.DarkGreen,
+    'text_color': Color.text,
+  }
+  def_city_context = grayed_city_context
+  def_edge_context = KruskalVisualizer.grayed_edge_context
+  fixed_edge_context = KruskalVisualizer.def_edge_context
+  fixing_edge_context = {
+    'edge_line_color': Color.Crimson,
+    'edge_value_color': Color.DarkRed,
+    'shows_edge_value': True,
+    'edge_line_width': 5,
+  }
+  compare_edge_context = {
+    'edge_line_color': Color.LightGreen,
+    'edge_value_color': Color.DarkGreen,
+    'shows_edge_value': True,
+    'edge_line_width': 5,
+  }
+
+
+  def setup(self, data):
+    super().setup(data)
+    self.weights = []
+    self.connections = dict()
+    self.push_index = -1
+    self.pop_index = -1
+    self.update_index = -1
+    self.fixing_index = -1
+    self.current_index = -1
+
+  def draw_content(self):
+    if hasattr(self.data, 'edges'):
+      self.draw_all_edges()
+    self.draw_all_cities()
+
+    # self.draw_candidates()
+    self.draw_right_pane()
+
+  def draw_right_pane(self):
+    bx = self.roots_x
+    y = self.roots_y
+    w = self.roots_w
+    h = self.root_h
+    u,v = self.appended_edge
+    animates_y = False
+    for weight, ci in self.weights:
+      city = self.data.cities[ci]
+      text = f'{weight} - {city.index}.{city.name}'
+      ctx = {}#self.bctx_current
+      x = bx
+      if ci == self.push_index:
+        x += (1 - self.anim_progress) * self.roots_w
+      elif ci == self.pop_index:
+        x += (self.anim_progress) * self.roots_w
+        animates_y = True
+      elif ci == self.update_index:
+        ctx = self.bctx_updated
+      elif ci == self.fixing_index:
+        ctx = self.bctx_current
+
+      ty = y
+      if animates_y and ci != self.pop_index: ty -= self.anim_progress * h
+      self.draw_box([x,ty,w,h], text=text, **ctx)
+      y += h
+
+  def draw_city(self, city, **args):
+    if city == self.current_index:
+      radius = self.config.font_size
+      c = self.data.cities[city]
+      pg.draw.circle(self.screen, Color.line, self.city2s(c), radius, 1)
+    super().draw_city(city, **args)
+
+  # def get_edge_context(self, u,v):
+
+  def append(self, weight, ci, c2=None):
+    self.set_city_context(ci, self.candidate_city_context)
+    if c2 != None:
+      self.connections[ci] = c2
+      self.set_edge_context(ci, c2, self.candidate_edge_context)
+    self.weights.append((weight, ci))
+    self.push_index = ci
+    # msec = 1000 if c2 == None else 500
+    self.animate(1000)
+    self.push_index = -1
+
+  def update(self, weight, ci, ci_from):
+    # print('update', weight, ci)
+    for i in range(len(self.weights)):
+      w, c = self.weights[i]
+      if c == ci:
+        wi = i
+        break
+    else: return
+
+    ci_orig = self.connections[ci]
+    self.connections[ci] = ci_from
+    self.set_edge_context(ci, ci_from, self.candidate_edge_context)
+    self.set_edge_context(ci, ci_orig, self.compare_edge_context)
+    self.update_index = ci
+    self.weights[wi] = (weight, ci)
+    self.draw()
+    self.wait(1000)
+    self.update_index = -1
+    self.set_edge_context(ci, ci_orig, None)
+    self.draw()
+
+  def fix(self, ci, ci_from=None):
+    self.current_index = ci
+    self.connections[ci_from] = ci
+    if ci != ci_from:
+      self.fixing_index = ci
+      self.set_edge_context(ci_from, ci, self.fixing_edge_context)
+      self.draw()
+      self.wait(1000)
+      self.fixing_index = -1
+      self.set_edge_context(ci_from, ci, self.fixed_edge_context)
+    self.set_city_context(ci, self.normal_city_context)
+    self.pop_index = ci
+    self.animate(1000)
+    self.pop_index = -1
+    for cc in self.data.completed:
+      if cc == ci_from: continue
+      if self.get_edge_context(ci, cc) == None: continue
+      self.set_edge_context(ci, cc, None)
+    for i in range(len(self.weights)):
+      if self.weights[i][1] == ci:
+        self.weights.pop(i)
+        break
+    self.draw()
+
+  def compare(self, ci, ci_from):
+    self.update_index = ci
+    self.set_edge_context(ci_from, ci, self.compare_edge_context)
+    self.draw()
+    self.wait(1000)
+    self.update_index = -1
+    self.set_edge_context(ci_from, ci, None)
+    self.draw()
+
+  def finish(self):
+    self.current_index = -1
+    print(self.weights)
+    self.draw()
+
+
+
