@@ -1,5 +1,5 @@
 from data_city import City, five_letter_cities, make_edges
-from vis import PrimVisualizer as Visualizer
+from vis import DijkstraVisualizer as Visualizer
 from random import randint, seed, shuffle
 from heapdict import heapdict
 # heapdict module 을 설치해야 한다. pip install heapdict 로 설치한다.
@@ -76,6 +76,8 @@ def main():
   weights[start_city_index] = 0, start_city_index # weight, from
   vis.append(0, start_city_index)
 
+  vis.set_start(start_city_index)
+
   global mst
   mst = []
   while weights:
@@ -91,10 +93,10 @@ def main():
     adjacents = graph[v] # v 에 연결되는 점들 중에서
     for adj in adjacents:
       if adj in completed: continue # 이미 완성된 점은 건드리지 말자
-      weight = adjacents[adj]
+      weight = w + adjacents[adj]
       if adj in weights:    # adj 에 대해 가중치가 저장되어 있다면
-        w = weights[adj][0] # 가중치를 가져온다
-        if weight < w:      # 가져온 것보다 비용이 적다면
+        prev_w = weights[adj][0] # 가중치를 가져온다
+        if weight < prev_w:      # 가져온 것보다 비용이 적다면
           weights[adj] = weight, v    # 교체한다
           vis.update(weight, adj, v)
         else:
