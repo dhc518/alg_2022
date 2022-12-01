@@ -109,8 +109,9 @@ class Visualizer:
           self.loop = True
           self.paused = True
         elif e.type == pg.KEYUP and e.key == pg.K_SPACE:
-          self.loop = False
-          self.paused = False
+          if pg.key.get_mods() & pg.KMOD_LSHIFT == 0:
+            self.loop = False
+            self.paused = False
 
   def handle_event(self, e):
     if e.type == pg.QUIT:
@@ -222,6 +223,8 @@ class Visualizer:
         self.screen.blit(img, rect)
       else:
         self.screen.blit(img, xy)
+
+    return img.get_size()
 
 class TestVisualizer(Visualizer):
   def draw(self):

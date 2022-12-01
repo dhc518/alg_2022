@@ -1,8 +1,7 @@
 from data_city import City, five_letter_cities, make_edges
-from vis import PrimVisualizer as Visualizer
+from vis import CitySetCoverVisualizer as Visualizer
 from random import randint, seed, shuffle
-from heapdict import heapdict
-# heapdict module 을 설치해야 한다. pip install heapdict 로 설치한다.
+from copy import deepcopy
 
 data_sets = [
   {
@@ -41,75 +40,44 @@ data_sets = [
 
 n_data_sets = len(data_sets)
 
-# adjacency matric - array of array
 def build_graph():
   global graph
   graph = {u: dict() for u in range(n_cities)}
   for u,v,w in edges:
     graph[u][v] = w
     graph[v][u] = w
-  # print(graph)
-  # print_adj_matrix()
-
-def print_adj_matrix():
-  for u in range(n_cities):
-    for v in range(n_cities):
-      w = graph[u][v] if v in graph[u] else 0
-      print(f'{w:5d}', end='')
-    print()
-  print()
-
 
 def main():
   global n_cities
   n_cities = len(cities)
 
   build_graph()
-  # print(f'{n_cities} cities, start={cities[start_city_index]}')
 
-  global completed
-  completed = set()
-  completed.add(start_city_index)
+  global u, f, U, F
+  f = [
+    set(list(d.keys()) + [u]) for u,d in graph.items()
+  ]
+  print(f)
+  U = deepcopy(u)
+  F = deepcopy(f)
+  vis.draw()
+  vis.wait(1000)
 
-  global weights
-  weights = heapdict()
-  weights[start_city_index] = 0, start_city_index # weight, from
-  vis.append(0, start_city_index)
+  global C
+  C = []
+  while U:
+    max_i = F.index(max(F, key=lambda s: len(s & U)))
+    vis.fix(max_i)                 # max_i 번째에 가장 원소가 많이 겹친다
+    S = F[max_i] # F 에서 U 와의 교집합이 가장 큰 부분집합
+    U -= S       # U 에서 해당 부분집합의 원소를 제거한다
+    F[max_i] = set()
+    C.append(S)
+    print(f'{U=}, {C=}')
+  vis.draw()
 
-  global mst
-  mst = []
-  while weights:
-    # print('<', weights)
-    v, (w, u) = weights.popitem()
-    if u != v:                       # 최초 시작점은 u 와 v 가 같으므로 생략한다
-      mst.append((u, v))             # 결과물에 추가한다
-    completed.add(v)     # 이번에 v 를 확정한다
-    vis.fix(v, u)
-    # print('>', weights)
-    # print(mst)
-
-    adjacents = graph[v] # v 에 연결되는 점들 중에서
-    for adj in adjacents:
-      if adj in completed: continue # 이미 완성된 점은 건드리지 말자
-      weight = adjacents[adj]
-      if adj in weights:    # adj 에 대해 가중치가 저장되어 있다면
-        w = weights[adj][0] # 가중치를 가져온다
-        if weight < w:      # 가져온 것보다 비용이 적다면
-          weights[adj] = weight, v    # 교체한다
-          vis.update(weight, adj, v)
-        else:
-          vis.compare(adj, v, weight)
-      else:                        # 저장되어 있지 않다면
-        weights[adj] = weight, v   # 추가한다
-        vis.append(weight, adj, v)
-
-    # if len(completed) >= 3: break
-
-  vis.finish()
-  # print(mst)
 
 if __name__ == '__main__':
-  vis = Visualizer('Minimum Spanning Tree - Prim')
+  vis = Visualizer('Set Cover - Cities')
   idx = 0
   ds = data_sets[idx]
   beg, end = ds['beg'], ds['end']
@@ -119,6 +87,7 @@ if __name__ == '__main__':
   start_city_index = 0
   while True:
     n_cities = len(cities)
+    u = set(range(0, n_cities))
     vis.setup(vis.get_main_module())
     vis.draw()
     main()
@@ -133,18 +102,9 @@ if __name__ == '__main__':
       edges = ds['edges']
     elif vis.restart_rshift:
       beg = randint(0, 800)
-      end = randint(beg+15, beg+25)
+      end = randint(beg+10, beg+40)
       cities = five_letter_cities[beg:end]
       City.apply_index(cities)
-      edges = make_edges(cities, 3/5, False)
-      print(f"    'beg':{beg}, 'end':{end}, 'edges':[ ", end='')
-      cnt = 0
-      for e in edges:
-        if cnt % 5 == 0: print('\n      ', end='')
-        print(f'{e}, ', end='')
-        cnt += 1
-      print()
-      print(f'    ] # {cities[0]} ~ {cities[-1]} : {len(edges)} edges.')
-      print('  }, {')
+      edges = make_edges(cities, 3/5)
     start_city_index = randint(0, n_cities - 1)
 

@@ -599,7 +599,13 @@ class PrimVisualizer(KruskalVisualizer):
     self.fixing_index = -1
     self.draw()
 
-  def compare(self, ci, ci_from, value = 0):
+  def compare(self, ci, ci_from, value = 0, add=False):
+    if add:
+      if not ci in self.data.weights:
+        return self.append(value, ci, ci_from)
+      w = self.data.weights[ci]
+      if value < w:
+        return self.update(value, ci, ci_from)
     self.prev_weight = value, ci_from
     self.update_index = ci
     self.set_edge_context(ci_from, ci, self.compare_edge_context)
@@ -611,7 +617,7 @@ class PrimVisualizer(KruskalVisualizer):
 
   def finish(self):
     self.current_index = -1
-    print(self.weights)
+    # print(self.weights)
     self.draw()
 
 class DijkstraVisualizer(PrimVisualizer):
@@ -664,3 +670,420 @@ class DijkstraVisualizer(PrimVisualizer):
     xy[1] += self.config.font_size // 2 + radius
 
     self.draw_text(text, xy, text_color=name_color, **args)
+
+class SetCoverVisualizer(Visualizer):
+  bctx_removed = {
+    'line_color': Color.LightSalmon,
+    'text_color': Color.LightSalmon,
+  }
+  bctx_normal = {}
+  bctx_fixing = {
+    'line_color': Color.line,
+    'text_color': Color.text,
+    'body_color': Color.IndianRed,
+    'width': 2,
+  }
+  bctx_fixing_without_body = {
+    'line_color': Color.line,
+    'text_color': Color.Crimson,
+    'no_body': True,
+    'width': 2,
+  }
+  bctx_comp = bctx_fixing
+  bctx_fixed = {
+    'line_color': Color.Teal,
+    'text_color': Color.DarkGreen,
+    'body_color': Color.LightBlue,
+    'width': 2,
+  }
+  bctx_max_count = {
+    'line_color': Color.Green,
+    'no_body': True,
+  }
+  def setup(self, data):
+    # super().setup(data)
+    self.data = data
+    self.counts = []
+    self.current_idx = -1
+    self.fixing_index = -1
+    self.comp_el = None
+
+  def draw(self):
+    self.clear()
+    self.calc_coords()
+    self.draw_content()
+    self.update_display()
+
+  def reset(self):
+    self.f_idxs = [ i for i in range(len(self.data.f))]
+    self.counts = [ 0 for _ in range(len(self.data.f))]
+
+  def comp(self, fi, el=None, cnt=0):
+    self.current_idx = self.f_idxs[fi]
+    self.counts[self.current_idx] = cnt
+    self.comp_el = el
+    self.draw()
+    self.wait(100)
+
+  def fix(self, fidx):
+    self.comp_el = None
+    self.current_idx = -1
+    self.fixing_index = self.f_idxs[fidx]
+    self.draw()
+    self.wait(1000)
+    self.f_idxs.pop(fidx)
+    self.fixing_index = -1
+    self.counts = [ 0 for _ in range(len(self.data.f))]
+    self.draw()
+    self.wait(1000)
+
+  def count_elements(self):
+    for fi in self.f_idxs:
+      self.counts[fi] = len(self.data.U & self.data.f[fi])
+    self.draw()
+
+  def calc_coords(self):
+    self.table_x = self.config.screen_width // 2
+    self.cell_w = self.config.font_size * 4
+    self.cell_spacing = self.cell_w * 3 // 2
+    self.cells_in_a_row = self.table_x // self.cell_spacing
+
+    subsets_h = self.config.screen_height - 2 * self.separator_size
+    self.subset_h = subsets_h // len(self.data.f)
+
+  def draw_content(self):
+    # if not hasattr(self.data, 'U'): return
+    self.draw_u_elements()
+    self.draw_f_elements()
+
+  def draw_u_elements(self):
+    sx = self.separator_size
+    sy = self.separator_size
+    x, y, w, h = sx, sy, self.cell_w, self.cell_w
+    u = list(self.data.u)
+    for i in range(len(u)):
+      el = u[i]
+      ctx = self.get_el_ctx(el)
+      # print(f'{el=} {self.comp_el=} {ctx}')
+      self.draw_box([x,y,w,h], f'{el}', border_radius=w//3, **ctx)
+      x += self.cell_spacing
+      if x + self.cell_spacing > self.table_x:
+        x, y = sx, y + self.cell_spacing
+
+  def get_el_ctx(self, el, compares=True):
+    if not el in self.data.U:
+      return self.bctx_removed
+    if compares and el == self.comp_el:
+      return self.bctx_comp
+    return self.bctx_normal
+
+  def get_fi_ctx(self, fi, el):
+    # print(f'{fi=} {self.fixing_index=} {self.f_idxs=}')
+    if fi == self.current_idx and el == self.comp_el:
+      return self.bctx_comp
+    if fi == self.fixing_index:
+      if el in self.data.U:
+        return self.bctx_fixing
+      else:
+        return self.bctx_fixing_without_body
+    if fi in self.f_idxs:
+      return self.get_el_ctx(el, False)
+    else:
+      return self.bctx_fixed
+
+  def draw_f_elements(self):
+    y, w, h = self.separator_size, self.subset_h, self.subset_h
+    w_10th = w // 10
+    max_count = max(self.counts)
+    for i in range(len(self.data.f)):
+      x = self.table_x
+      count = self.counts[i]
+      self.draw_box([x,y,w,h], f'{count}', no_line=True)
+      f_list = sorted(list(self.data.f[i]))
+      if count != 0 and count == max_count:
+        mw = self.subset_h * (len(f_list) + 1)
+        self.draw_box([x,y,mw,h], None, **self.bctx_max_count)
+      for e in f_list:
+        ctx = self.get_fi_ctx(i, e)
+        x += self.subset_h
+        self.draw_box(rect_inflate([x,y,w,h], -w_10th), f'{e}', border_radius=w//3, **ctx)
+      y += self.subset_h
+
+class CitySetCoverVisualizer(PlanarVisualizer):
+  grayed_city_context = PrimVisualizer.grayed_city_context
+  def_edge_context = KruskalVisualizer.grayed_edge_context
+  fixed_edge_context = {
+    'edge_line_color': Color.Teal,
+    'edge_value_color': Color.DarkGreen,
+  }
+  neighbor_city_context = {
+    'city_body_color': Color.LightBlue,
+    'city_line_color': Color.DeepSkyBlue,
+    'city_name_color': Color.Gray,
+    'shows_city_index': True,
+    # 'shows_city_coord': True,
+  }
+
+  def_city_context = grayed_city_context
+  normal_city_context = KruskalVisualizer.normal_city_context
+  def setup(self, data):
+    super().setup(data)
+    self.current_idx = -1
+    self.fixing_index = -1
+
+  def fix(self, fidx):
+    self.comp_el = None
+    self.current_idx = -1
+    self.fixing_index = fidx
+    self.set_city_context(fidx, self.normal_city_context)
+    for v in self.data.graph[fidx]:
+      self.set_edge_context(fidx, v, self.fixed_edge_context)
+      if not v in self.city_contexts:
+        self.set_city_context(v, self.neighbor_city_context)
+    self.draw()
+    self.wait(1000)
+    # self.f_idxs.pop(fidx)
+    self.fixing_index = -1
+    # self.counts = [ 0 for _ in range(len(self.data.f))]
+    self.draw()
+    # self.wait(1000)
+
+  def calc_coords(self):
+    self.legend_right = self.config.screen_width // 3
+    self.legend_bottom = self.config.screen_height // 3
+    self.table_x = self.config.screen_width - self.legend_right #- self.separator_size
+
+    super().calc_coords()
+
+    if not hasattr(self.data, 'f'): return
+    subsets_h = self.config.screen_height - 2 * self.separator_size
+    self.subset_h = subsets_h // (len(self.data.f) + 2)
+    if self.subset_h < self.config.font_size:
+      self.subset_h = self.config.font_size
+
+    self.count_elements()
+
+  def count_elements(self):
+    self.counts = dict()
+    len_f = len(self.data.f)
+    for fi in range(len_f):
+      if self.data.F[fi]:
+        self.counts[fi] = len(self.data.U & self.data.f[fi])
+      else:
+        self.counts[fi] = 0
+
+  def draw_content(self):
+    super().draw_content()
+    self.draw_f_elements()
+
+  def get_el_ctx(self, el, compares=True):
+    if not el in self.data.U:
+      return SetCoverVisualizer.bctx_removed
+    if compares and el == self.comp_el:
+      return SetCoverVisualizer.bctx_comp
+    return SetCoverVisualizer.bctx_normal
+
+  def get_fi_ctx(self, fi, el):
+    # print(f'{fi=} {self.fixing_index=} {self.f_idxs=}')
+    if fi == self.current_idx and el == self.comp_el:
+      return SetCoverVisualizer.bctx_comp
+    if fi == self.fixing_index:
+      if el in self.data.U:
+        return SetCoverVisualizer.bctx_fixing
+      else:
+        return SetCoverVisualizer.bctx_fixing_without_body
+    if self.data.F[fi]:
+      return self.get_el_ctx(el, False)
+    else:
+      return SetCoverVisualizer.bctx_fixed
+
+  def draw_f_elements(self):
+    if not hasattr(self, 'subset_h'): return
+
+    y, w, h = self.separator_size, self.subset_h, self.subset_h
+    w_10th = w // 10
+    max_count = max(self.counts)
+    for i in range(len(self.data.f)):
+      x = self.table_x
+      count = self.counts[i]
+      self.draw_box([x,y,w,h], f'{count}', no_line=True)
+      f_list = sorted(list(self.data.f[i]))
+      if count != 0 and count == max_count:
+        mw = self.subset_h * (len(f_list) + 1)
+        self.draw_box([x,y,mw,h], None, **self.bctx_max_count)
+      for e in f_list:
+        ctx = self.get_fi_ctx(i, e)
+        x += self.subset_h
+        self.draw_box(rect_inflate([x,y,w,h], -w_10th), f'{e}', border_radius=w//3, **ctx)
+      y += self.subset_h
+
+class MstTspVisualizer(PrimVisualizer):
+  PHASE_MST, PHASE_TSP, PHASE_SHORTCUT = range(3)
+  cctx_start = {
+    'city_body_color': Color.Crimson,
+    'city_line_color': Color.line,
+    'city_name_color': Color.text,
+    'shows_city_index': True,
+    # 'shows_city_coord': True,
+  }
+  cctx_update = {
+    'city_body_color': Color.Black,
+    'city_line_color': Color.line,
+    'city_name_color': Color.text,
+    'shows_city_index': True,
+    # 'shows_city_coord': True,
+  }
+  ectx_mst = {
+    'edge_line_color': Color.Lavender,
+    'edge_line_width': 16,
+    'edge_value_color': Color.Gray,
+    'shows_edge_value': True,
+  }
+  ectx_tsp = {
+    'edge_line_color': Color.Crimson,
+    'edge_value_color': Color.DarkBlue,
+    'shows_edge_value': True,
+  }
+  bctx_mst = {
+    'line_color': Color.line,
+    'text_color': Color.Crimson,
+    'no_body': True,
+    # 'width': 2,
+  }
+  bctx_current = {
+    'line_color': Color.Silver,
+    'body_color': Color.LemonChiffon,
+    'text_color': Color.text,
+    # 'width': 2,
+  }
+  bctx_seq_normal = {
+    'line_color': Color.line,
+    'text_color': Color.Crimson,
+    'no_body': True,
+    # 'width': 2,
+  }
+  bctx_seq_current = {
+    'line_color': Color.DarkBlue,
+    'body_color': Color.LightBlue,
+    'text_color': Color.text,
+  }
+  bctx_seq_dup = {
+    'line_color': Color.DarkBlue,
+    'body_color': Color.LemonChiffon,
+    'text_color': Color.Gray,
+  }
+  def setup(self, data):
+    super().setup(data)
+    self.phase = self.PHASE_MST
+    self.start_index = -1
+    self.current_index = -1
+
+  def calc_coords(self):
+    if self.phase == self.PHASE_MST:
+      return super().calc_coords()
+
+    self.bsize = self.separator_size * 2 // 3
+    self.bdiff = self.bsize * 4 // 3
+
+    self.legend_right = self.config.screen_width // 5
+    self.legend_bottom = self.config.screen_height // 5
+
+    PlanarVisualizer.calc_coords(self)
+
+  def set_start(self, index):
+    self.start_index = index
+
+  def start_shortcut(self):
+    self.phase = self.PHASE_SHORTCUT
+
+  def get_city_context(self, index):
+    if index == self.data.start_index:
+      return self.cctx_start
+    return super().get_city_context(index)
+
+  def draw_right_pane(self):
+    if self.phase == self.PHASE_MST:
+      return super().draw_right_pane()
+    if self.phase == self.PHASE_TSP:
+      self.draw_adjacents()
+    self.draw_sequences()
+
+  def draw_adjacents(self):
+    if not hasattr(self.data, 'mg'): return
+    nc = len(self.data.cities)
+    bx = self.config.screen_width - self.legend_right + self.separator_size
+    bw = self.legend_right - self.separator_size * 3 // 2
+    # print(f'{bx=} {self.config.screen_width=} {self.legend_right=}') #+ self.separator_size
+    y = self.roots_y
+    h = self.bsize
+    # df = h // 8
+    ctx = self.bctx_mst
+    for i in range(nc):
+      if not self.data.mg[i].keys(): continue
+      if i == self.current_index:
+        rect = rect_inflate([bx, y, bw, h], 4)
+        self.draw_box(rect, **self.bctx_current)
+      x = bx
+      tx, ty = x + h // 2, y + h // 2
+      self.draw_text(f'{i}', [tx,ty])
+      for v in self.data.mg[i].keys():
+        x += self.bdiff
+        self.draw_box([x,y,h,h], f'{v}', border_radius=h//3, **ctx)
+      y += self.bdiff
+
+  def draw_sequences(self):
+    if not hasattr(self.data, 'seq'): return
+
+    bx = x = self.separator_size
+    y = self.config.screen_height - self.legend_bottom + self.separator_size
+    w = self.bsize #self.separator_size * 2 // 3
+    dx = self.bdiff #w * 4 // 3
+    maxx = self.config.screen_width - self.legend_right
+
+    for i in range(len(self.data.seq)):
+      n = self.data.seq[i]
+      if n == self.current_index:
+        ctx = self.bctx_seq_current
+      elif self.data.seq[:i].count(n) > 0:
+        ctx = self.bctx_seq_dup
+      else:
+        ctx = self.bctx_seq_normal
+      self.draw_box([x,y,w,w], f'{n}', **ctx)
+      x += dx
+      if x >= maxx:
+        x, y = bx, y + self.bdiff
+
+
+  def finish_mst(self):
+    self.phase = self.PHASE_TSP
+    for u,v,w in self.data.mst_edges:
+      self.set_edge_context(u, v, self.ectx_mst)
+
+  def draw_all_edges(self):
+    super().draw_all_edges()
+    if self.phase == self.PHASE_MST:
+      return
+    if not hasattr(self.data, 'seq'): return
+    prev = None
+    for c in self.data.seq:
+      if prev != None:
+        self.draw_directed_edge(prev, c, **self.ectx_tsp)
+      prev = c
+
+  def add_seq(self, c1, c2):
+    prev = self.city_contexts[c2] if c2 in self.city_contexts else None
+    self.current_index = c2
+    self.set_city_context(c2, self.cctx_update)
+    self.draw()
+    self.wait(1000)
+    self.set_city_context(c2, prev)
+
+  def update_shortcut(self, c):
+    prev = self.city_contexts[c] if c in self.city_contexts else None
+    self.current_index = c
+    self.set_city_context(c, self.cctx_update)
+    self.draw()
+    self.wait(500)
+    self.set_city_context(c, prev)
+
+
